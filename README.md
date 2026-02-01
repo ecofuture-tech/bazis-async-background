@@ -12,15 +12,15 @@ Core background task framework for Bazis. It provides Kafka broker helpers, task
 # Install the package
 uv add bazis-async-background
 
-# Configure environment variables / settings
-INSTALLED_APPS='["bazis.contrib.async_background", ...]'
-BAZIS_CONFIG_APPS='["bazis.contrib.async_background", ...]'
+# Configure environment variables / settings (.env uses BS_ prefix)
+BS_INSTALLED_APPS='["bazis.contrib.async_background", ...]'
+BS_BAZIS_CONFIG_APPS='["bazis.contrib.async_background", ...]'
 
 # Kafka settings
-KAFKA_BOOTSTRAP_SERVERS=localhost:9093
-KAFKA_TOPIC_ASYNC_REQUEST=my_app_background_tasks
-KAFKA_GROUP_ID=my_app_background
-KAFKA_TASKS='["my_app.background.tasks"]'
+BS_KAFKA_BOOTSTRAP_SERVERS=localhost:9093
+BS_KAFKA_TOPIC_ASYNC_REQUEST=my_app_background_tasks
+BS_KAFKA_GROUP_ID=my_app_background
+BS_KAFKA_TASKS='["my_app.background.tasks"]'
 
 # Run consumer in Kubernetes
 python manage.py kafka_consumer_single
@@ -131,7 +131,7 @@ This waits for the pytest container to finish and streams logs only from the Pyt
 
 ### Environment Variables / Settings
 
-Add to your `.env` or `settings.py`:
+Add to your `.env` (use `BS_` prefix for Bazis settings) or `settings.py`:
 
 ```bash
 # Required settings
@@ -151,6 +151,14 @@ KAFKA_AUTO_OFFSET_RESET=latest
 KAFKA_ENABLE_AUTO_COMMIT=true
 KAFKA_AUTO_COMMIT_INTERVAL_MS=5000
 KAFKA_LOG_LEVEL=INFO
+```
+
+When placing these in a `.env` file, prefix them with `BS_`, for example:
+
+```bash
+BS_INSTALLED_APPS='["bazis.contrib.async_background", ...]'
+BS_BAZIS_CONFIG_APPS='["bazis.contrib.async_background", ...]'
+BS_KAFKA_TASKS='["my_app.background.tasks"]'
 ```
 
 **Parameters**:

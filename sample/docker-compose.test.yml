@@ -1,21 +1,19 @@
 services:
   postgresql-test:
     image: postgis/postgis:15-3.3
-    container_name: postgresql-test
     restart: always
     environment:
       POSTGRES_USER: test_user
       POSTGRES_PASSWORD: test_password
-      POSTGRES_DB: test_db
+      POSTGRES_DB: test_db_async_background
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db_async_background"]
       interval: 5s
       timeout: 3s
       retries: 20
 
   redis-test:
     image: redis:7-alpine
-    container_name: redis-test
     restart: always
     command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
     environment:
@@ -27,7 +25,6 @@ services:
       retries: 20
 
   zookeeper-test:
-    container_name: zookeeper-test
     image: confluentinc/cp-zookeeper:7.0.0
     ports:
       - 2181:2181
@@ -38,7 +35,6 @@ services:
       disable: true
 
   kafka-test:
-    container_name: kafka-test
     image: confluentinc/cp-kafka:7.0.0
     environment:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
@@ -66,7 +62,6 @@ services:
       retries: 20
 
   bazis-async-background-consumer-test:
-    container_name: bazis-async-background-consumer-test
     working_dir: /app/sample
     depends_on:
       postgresql-test:
@@ -93,7 +88,6 @@ services:
       "
 
   bazis-async-background-migrate:
-    container_name: bazis-async-background-migrate
     working_dir: /app/sample
     depends_on:
       postgresql-test:
@@ -118,7 +112,6 @@ services:
       "
 
   bazis-async-background-pytest:
-    container_name: bazis-async-background-pytest
     working_dir: /app/sample
     depends_on:
       postgresql-test:
