@@ -18,7 +18,7 @@ BS_BAZIS_CONFIG_APPS='["bazis.contrib.async_background", ...]'
 
 # Kafka settings
 BS_KAFKA_BOOTSTRAP_SERVERS=localhost:9093
-BS_KAFKA_TOPIC_ASYNC_REQUEST=my_app_background_tasks
+BS_KAFKA_TOPIC_ASYNC_BG=my_app_background_tasks
 BS_KAFKA_GROUP_ID=my_app_background
 BS_KAFKA_TASKS='["my_app.background.tasks"]'
 
@@ -141,7 +141,7 @@ KAFKA_TASKS='["my_app.background.tasks"]'
 
 # Kafka settings
 KAFKA_BOOTSTRAP_SERVERS=localhost:9093
-KAFKA_TOPIC_ASYNC_REQUEST=my_app_background_tasks
+KAFKA_TOPIC_ASYNC_BG=my_app_background_tasks
 KAFKA_GROUP_ID=my_app_background
 
 # Optional settings
@@ -165,7 +165,7 @@ BS_KAFKA_TASKS='["my_app.background.tasks"]'
 
 - `KAFKA_TASKS` — dotted module paths imported by the consumer to register tasks
 - `KAFKA_BOOTSTRAP_SERVERS` — Kafka broker address
-- `KAFKA_TOPIC_ASYNC_REQUEST` — topic for async tasks
+- `KAFKA_TOPIC_ASYNC_BG` — topic for async tasks
 - `KAFKA_GROUP_ID` — consumer group
 - `KAFKA_CONSUMER_LIFETIME_SEC` — consumer working time before restart
 - `KAFKA_CONSUMER_LIFETIME_JITTER_SEC` — random deviation to avoid simultaneous restart

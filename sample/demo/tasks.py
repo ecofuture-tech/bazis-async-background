@@ -35,7 +35,7 @@ if settings.KAFKA_GROUP_ID:
     _subscriber_kwargs["group_id"] = settings.KAFKA_GROUP_ID
 
 
-@get_broker_for_consumer().subscriber(settings.KAFKA_TOPIC_ASYNC_REQUEST, **_subscriber_kwargs)
+@get_broker_for_consumer().subscriber(settings.KAFKA_TOPIC_ASYNC_BG, **_subscriber_kwargs)
 async def consumer_demo_tasks(task: KafkaTask[DemoPayload]):
     await set_and_publish_status_async(
         task_id=task.task_id,

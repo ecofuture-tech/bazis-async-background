@@ -35,7 +35,7 @@ async def enqueue_demo(request: Request, payload: DemoPayload) -> dict:
         raise JsonApi401Exception from err
 
     message = await enqueue_task_async(
-        topic_name=settings.KAFKA_TOPIC_ASYNC_REQUEST,
+        topic_name=settings.KAFKA_TOPIC_ASYNC_BG,
         channel_name=channel_name,
         payload=payload,
         partition_marker=channel_name,

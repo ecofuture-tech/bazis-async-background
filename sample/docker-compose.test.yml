@@ -26,8 +26,6 @@ services:
 
   zookeeper-test:
     image: confluentinc/cp-zookeeper:7.0.0
-    ports:
-      - 2181:2181
     environment:
       - ZOOKEEPER_CLIENT_PORT=2181
     restart: always

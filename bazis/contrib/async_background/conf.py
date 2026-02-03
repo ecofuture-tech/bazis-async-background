@@ -43,7 +43,7 @@ class Settings(BazisSettings):
         default=None, description="List of Kafka brokers separated by commas (for example, 'kafka1:9092,kafka2:9092')."
     )  # List of brokers polled to obtain the topic owner
 
-    KAFKA_TOPIC_ASYNC_REQUEST: str | None = Field(default=None, description="Kafka topic for async requests.")
+    KAFKA_TOPIC_ASYNC_BG: str | None = Field(default=None, description="Kafka topic for async requests.")
 
     KAFKA_GROUP_ID: str | None = Field(default=None, description="Kafka consumer group for this service.")
 
@@ -80,7 +80,7 @@ class Settings(BazisSettings):
         return all(
             [
                 self.KAFKA_BOOTSTRAP_SERVERS,
-                self.KAFKA_TOPIC_ASYNC_REQUEST,
+                self.KAFKA_TOPIC_ASYNC_BG,
             ]
         )
 
