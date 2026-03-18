@@ -2,7 +2,7 @@
 FROM python:3.13-slim-bookworm AS base
 
 ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_BAZIS_ASYNC_BACKGROUND=0.0.0 \
-    UV_SYSTEM_PYTHON=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8
@@ -32,14 +32,15 @@ WORKDIR $WORKDIR
 # 2. Runtime stage
 FROM base AS runtime
 
-WORKDIR ${WORKDIR}/sample
-COPY pyproject.toml ${WORKDIR}/
 COPY bazis/ ${WORKDIR}/bazis/
-COPY sample/pyproject.toml ${WORKDIR}/sample/
-RUN uv sync
+COPY pyproject.toml ${WORKDIR}/
+COPY sample/pyproject.toml sample/uv.lock ${WORKDIR}/sample/
 
-WORKDIR ${WORKDIR}
-COPY ./ ${WORKDIR}
+WORKDIR ${WORKDIR}/sample
+RUN uv sync --frozen
+
+COPY sample/ ${WORKDIR}/sample/
+COPY tests/ ${WORKDIR}/tests/
 
 # 3. Test stage
 FROM runtime AS test

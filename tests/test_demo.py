@@ -14,8 +14,11 @@
 
 import json
 
+import asyncio
 import pytest
+from django.conf import settings
 from bazis_test_utils.utils import get_api_client
+from bazis.contrib.async_background.broker import ensure_topic_exists, get_topics_by_prefix
 
 
 @pytest.mark.run_with_consumer
@@ -45,3 +48,7 @@ def test_demo_enqueue_and_result(sample_app, process_async_response):
     )
     assert response.status_code == 200
     assert response.json()["response"]["echo"] == payload
+
+    asyncio.run(ensure_topic_exists("sample_local_test"))
+    topics_created = asyncio.run(get_topics_by_prefix("sample_local"))
+    assert set(topics_created) =={settings.KAFKA_TOPIC_ASYNC_BG, "sample_local_test"}

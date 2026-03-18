@@ -30,7 +30,13 @@ _subscriber_kwargs: dict[str, object] = {
     "auto_offset_reset": settings.KAFKA_AUTO_OFFSET_RESET,
     "auto_commit": settings.KAFKA_ENABLE_AUTO_COMMIT,
     "auto_commit_interval_ms": settings.KAFKA_AUTO_COMMIT_INTERVAL_MS,
+    "consumer_timeout_ms": settings.KAFKA_CONSUMER_TIMEOUT_MS,
 }
+if settings.KAFKA_FETCH_MIN_BYTES is not None:
+    _subscriber_kwargs["fetch_min_bytes"] = settings.KAFKA_FETCH_MIN_BYTES
+if settings.KAFKA_FETCH_MAX_WAIT_MS is not None:
+    _subscriber_kwargs["fetch_max_wait_ms"] = settings.KAFKA_FETCH_MAX_WAIT_MS
+
 if settings.KAFKA_GROUP_ID:
     _subscriber_kwargs["group_id"] = settings.KAFKA_GROUP_ID
 
