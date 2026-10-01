@@ -220,7 +220,9 @@ Runs 5 consumers in separate processes. Suitable for local development or deploy
 
 **Parameters**:
 
-- `--consumers-count` — number of consumers to run (default: 1)
+- `--consumers-count` — number of consumers to run (default: 15)
+- `--restart-delay-sec` — delay before restarting a consumer that exited (default: 1.0)
+- `--max-restarts` — restarts of a failed consumer before it is given up (default: unlimited)
 
 ## Examples
 
