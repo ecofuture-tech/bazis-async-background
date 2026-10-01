@@ -111,6 +111,9 @@ def test_subscriber_kwargs(settings):
     settings.KAFKA_ACK_POLICY = 'nack_on_error'
     kwargs = broker_module.subscriber_kwargs(max_records=5)
     assert kwargs['ack_policy'] == AckPolicy.NACK_ON_ERROR
+
+    settings.KAFKA_ACK_POLICY = 'reject_on_error'
+    assert broker_module.subscriber_kwargs()['ack_policy'] == AckPolicy.ACK
     assert kwargs['group_id'] == 'group'
     assert kwargs['max_records'] == 5
     assert 'auto_commit' not in kwargs

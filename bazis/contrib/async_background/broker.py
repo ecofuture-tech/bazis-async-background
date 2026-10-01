@@ -108,15 +108,18 @@ def subscriber_kwargs(**overrides) -> dict:
         @get_broker_for_consumer().subscriber(settings.KAFKA_TOPIC_ASYNC_BG, **subscriber_kwargs())
         async def consumer(task: KafkaTask[MyPayload]): ...
     """
+    if settings.KAFKA_ENABLE_AUTO_COMMIT:
+        ack_policy = AckPolicy.ACK_FIRST
+    elif settings.KAFKA_ACK_POLICY == 'reject_on_error':
+        # deprecated: FastStream 0.7 warns that it is the same as ACK
+        ack_policy = AckPolicy.ACK
+    else:
+        ack_policy = AckPolicy(settings.KAFKA_ACK_POLICY)
     kwargs: dict[str, object] = {
         'auto_offset_reset': settings.KAFKA_AUTO_OFFSET_RESET,
         'auto_commit_interval_ms': settings.KAFKA_AUTO_COMMIT_INTERVAL_MS,
         'consumer_timeout_ms': settings.KAFKA_CONSUMER_TIMEOUT_MS,
-        'ack_policy': (
-            AckPolicy.ACK_FIRST
-            if settings.KAFKA_ENABLE_AUTO_COMMIT
-            else AckPolicy(settings.KAFKA_ACK_POLICY)
-        ),
+        'ack_policy': ack_policy,
     }
     if settings.KAFKA_GROUP_ID:
         kwargs['group_id'] = settings.KAFKA_GROUP_ID
