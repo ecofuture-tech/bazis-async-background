@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Literal
+
 from pydantic import Field, computed_field
 
 from bazis.core.utils.schemas import BazisSettings
@@ -65,6 +67,17 @@ class Settings(BazisSettings):
     # 2) The commit that moves the offset for a message read via poll() may be sent to Kafka before the consumer
     # actually processes this message. This creates a risk that the consumer will not be able to process the message successfully,
     # and Kafka will have already advanced the offset for this message.
+
+    KAFKA_ACK_POLICY: Literal['ack', 'reject_on_error', 'nack_on_error'] = Field(
+        default='reject_on_error',
+        description=(
+            'When the consumer commits a message (FastStream AckPolicy) without auto commit: '
+            'reject_on_error - after processing, also when it failed (a failing message is not '
+            'redelivered forever); nack_on_error - only after a successful processing (a '
+            'failing message is redelivered at once and blocks its partition); ack - after '
+            'processing.'
+        ),
+    )
 
     KAFKA_AUTO_COMMIT_INTERVAL_MS: int = Field(
         default=10000, description="Interval for auto-committing the offset if enable.auto.commit is enabled."
