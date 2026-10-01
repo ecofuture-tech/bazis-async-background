@@ -24,14 +24,14 @@ from bazis.contrib.async_background.utils import redis, task_key
 
 def pytest_collection_modifyitems(config, items):
     """
-    The tests marked `kafka` need a Kafka broker and a running consumer
+    The tests marked `run_with_consumer` need a Kafka broker and a running consumer
     (`python manage.py kafka_consumer_single` in `sample`, see CLAUDE.md).
     """
     if settings.KAFKA_ENABLED:
         return
     skip = pytest.mark.skip(reason='Kafka is not configured (BS_KAFKA_BOOTSTRAP_SERVERS)')
     for item in items:
-        if 'kafka' in item.keywords:
+        if 'run_with_consumer' in item.keywords:
             item.add_marker(skip)
 
 

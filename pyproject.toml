@@ -34,7 +34,7 @@ classifiers = [
 ]
 dependencies = [
     "bazis>=2.3.1",
-    "bazis-ws>=2.3.0",
+    "bazis-ws>=2.3.1",
     # AckPolicy replaced auto_commit in FastStream 0.6
     "faststream[kafka]>=0.6",
     "redis>=5.0",
