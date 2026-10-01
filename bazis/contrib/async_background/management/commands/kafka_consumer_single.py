@@ -47,6 +47,12 @@ def run_consumer(consumer_id: int) -> None:
     from bazis.core.app import app  # noqa: F401
     from bazis.core.router import router  # noqa: F401
 
+    if not settings.KAFKA_ENABLED:
+        logger.error(
+            "Kafka is not configured: set KAFKA_BOOTSTRAP_SERVERS and KAFKA_TOPIC_ASYNC_BG."
+        )
+        sys.exit(1)
+
     if not settings.KAFKA_TASKS:
         logger.warning("No Kafka tasks configured in settings.KAFKA_TASKS.")
         return
