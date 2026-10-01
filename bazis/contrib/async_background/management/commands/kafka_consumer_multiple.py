@@ -87,13 +87,16 @@ class Command(BaseCommand):
                             index,
                             exit_code,
                         )
-                        restart_counts[index] += 1
+                        # a consumer exits with 0 after its lifetime: that is not a failure
+                        if exit_code != 0:
+                            restart_counts[index] += 1
                         if max_restarts is not None and restart_counts[index] > max_restarts:
                             logger.error(
                                 "Consumer %s exceeded max restarts (%s).",
                                 index,
                                 max_restarts,
                             )
+                            del processes[index]
                             continue
                         time.sleep(restart_delay_sec)
                         logger.info("Restarting consumer process with index %s", index)

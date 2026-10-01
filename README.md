@@ -171,7 +171,7 @@ BS_KAFKA_TASKS='["my_app.background.tasks"]'
 - `KAFKA_CONSUMER_LIFETIME_JITTER_SEC` — random deviation to avoid simultaneous restart
 - `KAFKA_AUTO_OFFSET_RESET` — Kafka auto offset reset policy
 - `KAFKA_ENABLE_AUTO_COMMIT` — commit a message before processing it (FastStream `AckPolicy.ACK_FIRST`; not recommended: a crash loses the message)
-- `KAFKA_ACK_POLICY` — without auto commit, when a message is committed: `reject_on_error` (default: after processing, also when it failed, so a failing message is not redelivered forever), `nack_on_error` (only after a successful processing) or `ack`
+- `KAFKA_ACK_POLICY` — without auto commit, when a message is committed: `ack` (default: after processing, also when it failed, so a failing message is not redelivered) or `nack_on_error` (only after a successful processing; a failing message is redelivered and blocks its partition)
 - `KAFKA_AUTO_COMMIT_INTERVAL_MS` — auto-commit interval in ms
 - `KAFKA_PUBLISH_TIMEOUT_SEC` — timeout of publishing a task
 - `KAFKA_LOG_LEVEL` — log level for consumers
