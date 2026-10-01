@@ -73,8 +73,9 @@ class Settings(BazisSettings):
         description=(
             'When the consumer commits a message (FastStream AckPolicy) without auto commit: '
             'reject_on_error - after processing, also when it failed (a failing message is not '
-            'redelivered forever); nack_on_error - only after a successful processing; '
-            'ack - after processing.'
+            'redelivered forever); nack_on_error - only after a successful processing (a '
+            'failing message is redelivered at once and blocks its partition); ack - after '
+            'processing.'
         ),
     )
 

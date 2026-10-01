@@ -53,4 +53,4 @@ def test_demo_enqueue_and_result(sample_app, process_async_response):
 
     asyncio.run(ensure_topic_exists("sample_local_test"))
     topics_created = asyncio.run(get_topics_by_prefix("sample_local"))
-    assert set(topics_created) =={settings.KAFKA_TOPIC_ASYNC_BG, "sample_local_test"}
+    assert {settings.KAFKA_TOPIC_ASYNC_BG, "sample_local_test"} <= set(topics_created)

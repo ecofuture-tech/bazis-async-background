@@ -15,7 +15,6 @@
 import asyncio
 import logging
 import random
-import weakref
 from contextlib import asynccontextmanager
 
 from django.conf import settings
@@ -29,15 +28,27 @@ from faststream.kafka import KafkaBroker
 logger = logging.getLogger(__name__)
 
 
-_brokers_by_loop: 'weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, KafkaBroker]' = (
-    weakref.WeakKeyDictionary()
-)
+_brokers_by_loop: dict[asyncio.AbstractEventLoop, KafkaBroker] = {}
+
+
+def drop_closed_loops(registry: dict):
+    """
+    Removes the objects of closed event loops from a per-loop registry: the objects refer to
+    their loop, so a weak registry would never release them.
+    """
+    for loop in [loop for loop in registry if loop.is_closed()]:
+        del registry[loop]
 _consumer_broker: KafkaBroker | None = None
 
 
 def _new_broker() -> KafkaBroker:
-    # the broker connects when it starts: the task modules can be imported without Kafka
-    return KafkaBroker(settings.KAFKA_BOOTSTRAP_SERVERS or 'localhost')
+    # the broker connects when it starts: the task modules can be imported without Kafka.
+    # The publication is bounded by the request timeout of the producer: cancelling it from
+    # outside would leave the message queued in the producer and delivered later
+    return KafkaBroker(
+        settings.KAFKA_BOOTSTRAP_SERVERS or 'localhost',
+        request_timeout_ms=settings.KAFKA_PUBLISH_TIMEOUT_SEC * 1000,
+    )
 
 
 def get_broker_for_async() -> KafkaBroker:
@@ -48,6 +59,7 @@ def get_broker_for_async() -> KafkaBroker:
     loop = asyncio.get_running_loop()
     broker = _brokers_by_loop.get(loop)
     if broker is None:
+        drop_closed_loops(_brokers_by_loop)
         broker = _new_broker()
         _brokers_by_loop[loop] = broker
     return broker
