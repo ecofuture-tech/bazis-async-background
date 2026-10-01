@@ -16,7 +16,7 @@ import logging
 
 from django.conf import settings
 
-from bazis.contrib.async_background.broker import get_broker_for_consumer
+from bazis.contrib.async_background.broker import get_broker_for_consumer, subscriber_kwargs
 from bazis.contrib.async_background.schemas import KafkaTask, TaskStatus
 from bazis.contrib.async_background.utils import set_and_publish_status_async
 
@@ -26,22 +26,7 @@ from .schemas import DemoPayload
 logger = logging.getLogger(__name__)
 
 
-_subscriber_kwargs: dict[str, object] = {
-    "auto_offset_reset": settings.KAFKA_AUTO_OFFSET_RESET,
-    "auto_commit": settings.KAFKA_ENABLE_AUTO_COMMIT,
-    "auto_commit_interval_ms": settings.KAFKA_AUTO_COMMIT_INTERVAL_MS,
-    "consumer_timeout_ms": settings.KAFKA_CONSUMER_TIMEOUT_MS,
-}
-if settings.KAFKA_FETCH_MIN_BYTES is not None:
-    _subscriber_kwargs["fetch_min_bytes"] = settings.KAFKA_FETCH_MIN_BYTES
-if settings.KAFKA_FETCH_MAX_WAIT_MS is not None:
-    _subscriber_kwargs["fetch_max_wait_ms"] = settings.KAFKA_FETCH_MAX_WAIT_MS
-
-if settings.KAFKA_GROUP_ID:
-    _subscriber_kwargs["group_id"] = settings.KAFKA_GROUP_ID
-
-
-@get_broker_for_consumer().subscriber(settings.KAFKA_TOPIC_ASYNC_BG, **_subscriber_kwargs)
+@get_broker_for_consumer().subscriber(settings.KAFKA_TOPIC_ASYNC_BG, **subscriber_kwargs())
 async def consumer_demo_tasks(task: KafkaTask[DemoPayload]):
     await set_and_publish_status_async(
         task_id=task.task_id,

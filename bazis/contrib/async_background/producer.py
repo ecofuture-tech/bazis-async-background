@@ -14,10 +14,14 @@
 
 import asyncio
 import logging
-import threading
+import weakref
 from uuid import uuid4
 
+from django.conf import settings
+
 from pydantic import BaseModel
+
+from faststream.kafka import KafkaBroker
 
 from bazis.contrib.async_background.broker import get_broker_for_async
 from bazis.contrib.async_background.schemas import KafkaTask, TaskStatus
@@ -27,6 +31,55 @@ from bazis.contrib.async_background.utils import set_and_publish_status_async
 logger = logging.getLogger(__name__)
 
 
+class _LoopProducer:
+    """
+    The started publishing broker of an event loop. The start is guarded by an asyncio
+    lock: a threading lock held across `await broker.start()` blocked the event loop when
+    two requests published at the same time.
+    """
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._broker: KafkaBroker | None = None
+
+    async def get_broker(self) -> KafkaBroker:
+        if self._broker is None:
+            async with self._lock:
+                if self._broker is None:
+                    broker = get_broker_for_async()
+                    await broker.start()
+                    self._broker = broker
+        return self._broker
+
+
+_producers: 'weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopProducer]' = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _get_producer() -> _LoopProducer:
+    loop = asyncio.get_running_loop()
+    producer = _producers.get(loop)
+    if producer is None:
+        producer = _producers[loop] = _LoopProducer()
+    return producer
+
+
+async def publish_message(topic_name: str, message: dict, partition_marker: str | None = None):
+    """
+    Publishes a message to a Kafka topic within KAFKA_PUBLISH_TIMEOUT_SEC.
+    """
+    broker = await _get_producer().get_broker()
+    await asyncio.wait_for(
+        broker.publish(
+            message,
+            topic_name,
+            key=partition_marker.encode('utf-8') if partition_marker else None,
+        ),
+        timeout=settings.KAFKA_PUBLISH_TIMEOUT_SEC,
+    )
+
+
 async def enqueue_task_async[Payload: BaseModel](
     *,
     topic_name: str,
@@ -34,6 +87,10 @@ async def enqueue_task_async[Payload: BaseModel](
     payload: Payload,
     partition_marker: str | None = None,
 ) -> KafkaTask[Payload]:
+    """
+    Registers a task (status `created`), publishes it to Kafka (`pending`) and returns it.
+    If publishing fails, the status is `failed` and the error is raised.
+    """
     task_id = str(uuid4())
     message = KafkaTask[Payload](
         task_id=task_id,
@@ -48,19 +105,16 @@ async def enqueue_task_async[Payload: BaseModel](
     )
 
     try:
-        producer = _get_kafka_producer(topic_name)
-        await producer.send_one_message(
-            message=message.model_dump(),
-            partition_marker=partition_marker,
-        )
+        await publish_message(topic_name, message.model_dump(mode='json'), partition_marker)
     except Exception as err:
+        logger.exception('Kafka publish failed for task %s.', task_id)
         await set_and_publish_status_async(
             task_id=task_id,
             channel_name=channel_name,
             status=TaskStatus.FAILED,
-            response={"error": str(err)},
+            response={'error': 'The task could not be queued'},
         )
-        raise
+        raise err
     else:
         await set_and_publish_status_async(
             task_id=task_id,
@@ -68,65 +122,3 @@ async def enqueue_task_async[Payload: BaseModel](
             status=TaskStatus.PENDING,
         )
     return message
-
-
-class _KafkaProducer:
-    """FastStream Kafka producer with reusable connection lifecycle."""
-
-    def __init__(self, topic_name: str) -> None:
-        self.topic_name = topic_name
-        self._start_lock = threading.Lock()
-        self._started = False
-        self._loop_id: int | None = None
-        self._broker = None
-
-    async def ensure_started(self) -> None:
-        current_loop_id = id(asyncio.get_running_loop())
-        if self._started and self._loop_id == current_loop_id:
-            return
-        with self._start_lock:
-            current_loop_id = id(asyncio.get_running_loop())
-            if self._started and self._loop_id == current_loop_id:
-                return
-            if self._started and self._loop_id != current_loop_id:
-                self._started = False
-                self._loop_id = None
-                self._broker = None
-            if self._broker is None:
-                self._broker = get_broker_for_async()
-            await self._broker.start()
-            self._started = True
-            self._loop_id = current_loop_id
-
-    async def send_one_message(
-        self,
-        message: dict,
-        partition_marker: str | None = None,
-    ) -> None:
-        """Sends a single message to Kafka."""
-        await self.ensure_started()
-        try:
-            await self._broker.publish(
-                message,
-                self.topic_name,
-                key=partition_marker.encode("utf-8") if partition_marker else None,
-            )
-        except Exception:
-            logger.exception("Kafka publish failed.")
-            raise
-
-
-_producer_cache: dict[tuple[str | None, int], _KafkaProducer] = {}
-
-
-def _get_kafka_producer(topic_name: str) -> _KafkaProducer:
-    try:
-        loop_id = id(asyncio.get_running_loop())
-    except RuntimeError:
-        loop_id = None
-    cache_key = (topic_name, loop_id if loop_id is not None else threading.get_ident())
-    producer = _producer_cache.get(cache_key)
-    if producer is None:
-        producer = _KafkaProducer(topic_name)
-        _producer_cache[cache_key] = producer
-    return producer
