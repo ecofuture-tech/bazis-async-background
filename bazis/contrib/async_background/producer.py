@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import logging
 from uuid import uuid4
 
 from pydantic import BaseModel
 
-from faststream.kafka import KafkaBroker
-
-from bazis.contrib.async_background.broker import drop_closed_loops, get_broker_for_async
+from bazis.contrib.async_background.broker import get_started_broker_for_async
 from bazis.contrib.async_background.schemas import KafkaTask, TaskStatus
 from bazis.contrib.async_background.utils import set_and_publish_status_async
 
@@ -28,45 +25,12 @@ from bazis.contrib.async_background.utils import set_and_publish_status_async
 logger = logging.getLogger(__name__)
 
 
-class _LoopProducer:
-    """
-    The started publishing broker of an event loop. The start is guarded by an asyncio
-    lock: a threading lock held across `await broker.start()` blocked the event loop when
-    two requests published at the same time.
-    """
-
-    def __init__(self) -> None:
-        self._lock = asyncio.Lock()
-        self._broker: KafkaBroker | None = None
-
-    async def get_broker(self) -> KafkaBroker:
-        if self._broker is None:
-            async with self._lock:
-                if self._broker is None:
-                    broker = get_broker_for_async()
-                    await broker.start()
-                    self._broker = broker
-        return self._broker
-
-
-_producers: dict[asyncio.AbstractEventLoop, _LoopProducer] = {}
-
-
-def _get_producer() -> _LoopProducer:
-    loop = asyncio.get_running_loop()
-    producer = _producers.get(loop)
-    if producer is None:
-        drop_closed_loops(_producers)
-        producer = _producers[loop] = _LoopProducer()
-    return producer
-
-
 async def publish_message(topic_name: str, message: dict, partition_marker: str | None = None):
     """
     Publishes a message to a Kafka topic (the producer gives up after
     KAFKA_PUBLISH_TIMEOUT_SEC).
     """
-    broker = await _get_producer().get_broker()
+    broker = await get_started_broker_for_async()
     await broker.publish(
         message,
         topic_name,
@@ -102,7 +66,9 @@ async def enqueue_task_async[Payload: BaseModel](
 
     try:
         await publish_message(topic_name, message.model_dump(mode='json'), partition_marker)
-    except Exception as err:
+    except Exception:
+        # after a timeout the message may still have been delivered: a consumer can then
+        # process the task and replace this status
         logger.exception('Kafka publish failed for task %s.', task_id)
         await set_and_publish_status_async(
             task_id=task_id,
@@ -110,5 +76,5 @@ async def enqueue_task_async[Payload: BaseModel](
             status=TaskStatus.FAILED,
             response={'error': 'The task could not be queued'},
         )
-        raise err
+        raise
     return message

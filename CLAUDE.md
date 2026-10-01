@@ -29,16 +29,20 @@ BS_CACHES__DEFAULT__LOCATION=redis://localhost:6379/1 \
 BS_MEDIA_ROOT=/tmp/bazis/media BS_STATIC_ROOT=/tmp/bazis/static BS_WEBAPP_ROOT=/tmp/bazis/webapp \
 BS_KAFKA_BOOTSTRAP_SERVERS=localhost:9092 BS_KAFKA_TOPIC_ASYNC_BG=sample_local_async_background \
 BS_KAFKA_GROUP_ID=sample_local \
-python -m pytest ../tests -o addopts="" -p no:cacheprovider
+python manage.py migrate -v0
+python -m pytest ../tests -o addopts="--reuse-db" -p no:cacheprovider
 ```
 
-The tests marked `kafka` also need a running consumer (start it first, from `sample`, with
+The tests use the database itself (`TEST.NAME` is the database name, the consumer shares it),
+so migrate it first and run pytest with `--reuse-db`.
+
+The tests marked `run_with_consumer` also need a running consumer (start it first, from `sample`, with
 the same variables): `python manage.py kafka_consumer_single &`. Without Kafka settings they
 are skipped. A local Kafka without Docker: download the Kafka binaries and start a single
 KRaft node (`bin/kafka-storage.sh format ...`, `bin/kafka-server-start.sh
 config/kraft/server.properties`).
 
-Lint: `ruff check bazis tests`. CI also runs `python manage.py makemigrations --check
+Lint: `ruff check bazis tests sample`. CI also runs `python manage.py makemigrations --check
 --dry-run` in `sample`: commit the migrations of model changes, including the sample apps.
 
 ## Releasing

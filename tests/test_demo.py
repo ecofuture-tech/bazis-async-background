@@ -23,7 +23,7 @@ from bazis_test_utils.utils import get_api_client
 from bazis.contrib.async_background.broker import ensure_topic_exists, get_topics_by_prefix
 
 
-@pytest.mark.kafka
+@pytest.mark.run_with_consumer
 @pytest.mark.django_db(transaction=True)
 def test_demo_enqueue_and_result(sample_app, process_async_response):
     token = "test-anonymous-token-0123456789"
