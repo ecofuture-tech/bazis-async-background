@@ -68,13 +68,14 @@ class Settings(BazisSettings):
     # actually processes this message. This creates a risk that the consumer will not be able to process the message successfully,
     # and Kafka will have already advanced the offset for this message.
 
-    KAFKA_ACK_POLICY: Literal['ack', 'nack_on_error'] = Field(
+    KAFKA_ACK_POLICY: Literal['ack', 'nack_on_error', 'reject_on_error'] = Field(
         default='ack',
         description=(
             'When the consumer commits a message (FastStream AckPolicy) without auto commit: '
             'ack - after processing, also when it failed (a failing message is not '
             'redelivered); nack_on_error - only after a successful processing (a failing '
-            'message is redelivered at once and blocks its partition).'
+            'message is redelivered at once and blocks its partition); reject_on_error - '
+            'deprecated, the same as ack.'
         ),
     )
 

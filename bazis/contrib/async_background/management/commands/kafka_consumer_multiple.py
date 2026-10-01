@@ -17,7 +17,7 @@ import os
 import sys
 import time
 
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 import psutil
 
@@ -97,6 +97,8 @@ class Command(BaseCommand):
                                 max_restarts,
                             )
                             del processes[index]
+                            if not processes:
+                                raise CommandError("All consumers exceeded max restarts.")
                             continue
                         time.sleep(restart_delay_sec)
                         logger.info("Restarting consumer process with index %s", index)
