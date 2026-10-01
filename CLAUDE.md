@@ -42,7 +42,7 @@ are skipped. A local Kafka without Docker: download the Kafka binaries and start
 KRaft node (`bin/kafka-storage.sh format ...`, `bin/kafka-server-start.sh
 config/kraft/server.properties`).
 
-Lint: `ruff check bazis tests`. CI also runs `python manage.py makemigrations --check
+Lint: `ruff check bazis tests sample`. CI also runs `python manage.py makemigrations --check
 --dry-run` in `sample`: commit the migrations of model changes, including the sample apps.
 
 ## Releasing
