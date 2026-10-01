@@ -1,0 +1,58 @@
+# What the package is for and how to use it, for tools and AI agents (see AGENTS.md).
+# `import` paths and `check` ids are verified by tests/test_manifest.py.
+
+[package]
+name = "bazis-async-background"
+summary = "background tasks over Kafka with statuses in Redis pushed over WebSocket"
+solves = [
+    "run long tasks outside the HTTP request and return a task id (202)",
+    "notify the client of the task status over WebSocket",
+    "let the client fetch the result of its task",
+]
+requires = ["bazis", "bazis-ws"]
+pairs_well = ["bazis-async-request", "bazis-users"]
+
+[[extension_points]]
+name = "enqueue_task_async"
+import = "bazis.contrib.async_background.producer.enqueue_task_async"
+use_when = "queue a task from an endpoint"
+
+[[extension_points]]
+name = "resolve_channel_name_async"
+import = "bazis.contrib.async_background.utils.resolve_channel_name_async"
+use_when = "the WS channel (and owner of the results) of the client of a request"
+
+[[extension_points]]
+name = "get_broker_for_consumer"
+import = "bazis.contrib.async_background.broker.get_broker_for_consumer"
+use_when = "register a task subscriber in a module listed in KAFKA_TASKS"
+
+[[extension_points]]
+name = "subscriber_kwargs"
+import = "bazis.contrib.async_background.broker.subscriber_kwargs"
+use_when = "the arguments of every subscriber(...), from the KAFKA_* settings"
+
+[[extension_points]]
+name = "KafkaTask"
+import = "bazis.contrib.async_background.schemas.KafkaTask"
+use_when = "the message type of a subscriber: KafkaTask[MyPayload]"
+
+[[extension_points]]
+name = "set_and_publish_status_async"
+import = "bazis.contrib.async_background.utils.set_and_publish_status_async"
+use_when = "store a task status (and result) and notify the client"
+
+[[pitfalls]]
+text = "consumers must be run (kafka_consumer_single / kafka_consumer_multiple) and import the task modules from KAFKA_TASKS"
+
+[[pitfalls]]
+text = "a task that raises stays `processing`: set TaskStatus.FAILED yourself"
+
+[[pitfalls]]
+text = "with BS_BAZIS_APPS set but not listing bazis.contrib.async_background, the KAFKA_* settings are missing"
+
+[[pitfalls]]
+text = "a channel name taken from client input exposes the results of other clients: use resolve_channel_name_async"
+
+[[pitfalls]]
+text = "without KAFKA_GROUP_ID every consumer receives every task and offsets are not committed"
