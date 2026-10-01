@@ -171,8 +171,7 @@ def test_concurrent_first_publishes(monkeypatch, settings):
         async def publish(self, message, topic, key=None):
             published.append((topic, key))
 
-    fake = FakeBroker()
-    monkeypatch.setattr(producer_module, 'get_broker_for_async', lambda: fake)
+    monkeypatch.setattr(broker_module, '_new_broker', FakeBroker)
 
     async def main():
         await asyncio.wait_for(
@@ -219,20 +218,17 @@ def _clean_redis():
     yield
 
 
-def test_registries_drop_closed_loops(monkeypatch):
+def test_brokers_of_closed_loops_are_dropped(monkeypatch):
     """
-    The objects of an event loop refer to it: they are released when another loop needs one.
+    The broker of an event loop refers to it: it is released when another loop needs one.
     """
 
     class FakeBroker:
         async def start(self): ...
 
-    monkeypatch.setattr(producer_module, 'get_broker_for_async', FakeBroker)
-
-    async def publish_on_new_loop():
-        await producer_module._get_producer().get_broker()
+    monkeypatch.setattr(broker_module, '_new_broker', FakeBroker)
+    broker_module._brokers_by_loop.clear()
 
     for _ in range(3):
-        asyncio.run(publish_on_new_loop())
-    assert len(producer_module._producers) == 1
-
+        asyncio.run(broker_module.get_started_broker_for_async())
+    assert len(broker_module._brokers_by_loop) == 1

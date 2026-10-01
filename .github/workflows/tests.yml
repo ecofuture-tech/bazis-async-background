@@ -107,6 +107,12 @@ jobs:
         working-directory: sample
         run: python manage.py makemigrations --check --dry-run
 
+      - name: Migrate the database shared by the tests and the consumer
+        # sample/settings.py sets TEST.NAME to the database name, so that the consumer sees
+        # the data of the tests; pytest runs with --reuse-db
+        working-directory: sample
+        run: python manage.py migrate -v0
+
       - name: Start a Kafka consumer
         working-directory: sample
         run: |
@@ -116,7 +122,7 @@ jobs:
 
       - name: Run tests
         working-directory: sample
-        run: python -m pytest ../tests -o addopts="" -p no:cacheprovider
+        run: python -m pytest ../tests -o addopts="--reuse-db" -p no:cacheprovider
 
       - name: Consumer log
         if: failure()

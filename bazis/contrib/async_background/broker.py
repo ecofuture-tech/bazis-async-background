@@ -24,20 +24,12 @@ from aiokafka.errors import NoError, TopicAlreadyExistsError
 from faststream import AckPolicy, FastStream
 from faststream.kafka import KafkaBroker
 
+from bazis.contrib.ws.utils import drop_closed_loops
+
 
 logger = logging.getLogger(__name__)
 
 
-_brokers_by_loop: dict[asyncio.AbstractEventLoop, KafkaBroker] = {}
-
-
-def drop_closed_loops(registry: dict):
-    """
-    Removes the objects of closed event loops from a per-loop registry: the objects refer to
-    their loop, so a weak registry would never release them.
-    """
-    for loop in [loop for loop in registry if loop.is_closed()]:
-        del registry[loop]
 _consumer_broker: KafkaBroker | None = None
 
 
@@ -51,18 +43,51 @@ def _new_broker() -> KafkaBroker:
     )
 
 
+class _LoopBroker:
+    """
+    The publishing broker of an event loop (a broker and its connections cannot be shared
+    between event loops). Its start is guarded by an asyncio lock: a threading lock held
+    across `await broker.start()` blocked the event loop when two requests published at
+    the same time.
+    """
+
+    def __init__(self) -> None:
+        self.broker = _new_broker()
+        self.lock = asyncio.Lock()
+        self.started = False
+
+
+_brokers_by_loop: dict[asyncio.AbstractEventLoop, _LoopBroker] = {}
+
+
+def _loop_broker() -> _LoopBroker:
+    loop = asyncio.get_running_loop()
+    entry = _brokers_by_loop.get(loop)
+    if entry is None:
+        drop_closed_loops(_brokers_by_loop)
+        entry = _brokers_by_loop[loop] = _LoopBroker()
+    return entry
+
+
 def get_broker_for_async() -> KafkaBroker:
     """
-    Returns the (not started) publishing broker of the running event loop: a broker and
-    its connections cannot be shared between event loops.
+    Returns the publishing broker of the running event loop, not necessarily started
+    (see `get_started_broker_for_async`).
     """
-    loop = asyncio.get_running_loop()
-    broker = _brokers_by_loop.get(loop)
-    if broker is None:
-        drop_closed_loops(_brokers_by_loop)
-        broker = _new_broker()
-        _brokers_by_loop[loop] = broker
-    return broker
+    return _loop_broker().broker
+
+
+async def get_started_broker_for_async() -> KafkaBroker:
+    """
+    Returns the started publishing broker of the running event loop.
+    """
+    entry = _loop_broker()
+    if not entry.started:
+        async with entry.lock:
+            if not entry.started:
+                await entry.broker.start()
+                entry.started = True
+    return entry.broker
 
 
 def get_broker_for_consumer() -> KafkaBroker:
@@ -118,7 +143,7 @@ def lifetime_hooks(app: FastStream, lifetime: float):
     Returns the hooks that start and cancel the timer which stops the application after
     its lifetime.
     """
-    timer: dict[str, asyncio.Task] = {}
+    timer: asyncio.Task | None = None
 
     async def stop_after_lifetime():
         await asyncio.sleep(lifetime)
@@ -126,11 +151,12 @@ def lifetime_hooks(app: FastStream, lifetime: float):
         app.exit()
 
     async def start_lifetime_timer():
-        timer['task'] = asyncio.create_task(stop_after_lifetime())
+        nonlocal timer
+        timer = asyncio.create_task(stop_after_lifetime())
 
     async def stop_lifetime_timer():
-        if task := timer.get('task'):
-            task.cancel()
+        if timer is not None:
+            timer.cancel()
 
     return start_lifetime_timer, stop_lifetime_timer
 
