@@ -219,7 +219,20 @@ def _clean_redis():
     yield
 
 
-@pytest.fixture(autouse=True)
-def _reset_settings(settings):
-    # the tests change KAFKA_* settings through the settings fixture
-    yield
+def test_registries_drop_closed_loops(monkeypatch):
+    """
+    The objects of an event loop refer to it: they are released when another loop needs one.
+    """
+
+    class FakeBroker:
+        async def start(self): ...
+
+    monkeypatch.setattr(producer_module, 'get_broker_for_async', FakeBroker)
+
+    async def publish_on_new_loop():
+        await producer_module._get_producer().get_broker()
+
+    for _ in range(3):
+        asyncio.run(publish_on_new_loop())
+    assert len(producer_module._producers) == 1
+

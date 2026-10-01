@@ -14,16 +14,13 @@
 
 import asyncio
 import logging
-import weakref
 from uuid import uuid4
-
-from django.conf import settings
 
 from pydantic import BaseModel
 
 from faststream.kafka import KafkaBroker
 
-from bazis.contrib.async_background.broker import get_broker_for_async
+from bazis.contrib.async_background.broker import drop_closed_loops, get_broker_for_async
 from bazis.contrib.async_background.schemas import KafkaTask, TaskStatus
 from bazis.contrib.async_background.utils import set_and_publish_status_async
 
@@ -52,31 +49,28 @@ class _LoopProducer:
         return self._broker
 
 
-_producers: 'weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, _LoopProducer]' = (
-    weakref.WeakKeyDictionary()
-)
+_producers: dict[asyncio.AbstractEventLoop, _LoopProducer] = {}
 
 
 def _get_producer() -> _LoopProducer:
     loop = asyncio.get_running_loop()
     producer = _producers.get(loop)
     if producer is None:
+        drop_closed_loops(_producers)
         producer = _producers[loop] = _LoopProducer()
     return producer
 
 
 async def publish_message(topic_name: str, message: dict, partition_marker: str | None = None):
     """
-    Publishes a message to a Kafka topic within KAFKA_PUBLISH_TIMEOUT_SEC.
+    Publishes a message to a Kafka topic (the producer gives up after
+    KAFKA_PUBLISH_TIMEOUT_SEC).
     """
     broker = await _get_producer().get_broker()
-    await asyncio.wait_for(
-        broker.publish(
-            message,
-            topic_name,
-            key=partition_marker.encode('utf-8') if partition_marker else None,
-        ),
-        timeout=settings.KAFKA_PUBLISH_TIMEOUT_SEC,
+    await broker.publish(
+        message,
+        topic_name,
+        key=partition_marker.encode('utf-8') if partition_marker else None,
     )
 
 
@@ -88,7 +82,7 @@ async def enqueue_task_async[Payload: BaseModel](
     partition_marker: str | None = None,
 ) -> KafkaTask[Payload]:
     """
-    Registers a task (status `created`), publishes it to Kafka (`pending`) and returns it.
+    Registers a task (status `pending`), publishes it to Kafka and returns it.
     If publishing fails, the status is `failed` and the error is raised.
     """
     task_id = str(uuid4())
@@ -98,10 +92,12 @@ async def enqueue_task_async[Payload: BaseModel](
         payload=payload,
     )
 
+    # the status is pending before the publication: a consumer may process the task and
+    # store its result before the publication returns, which a later status would overwrite
     await set_and_publish_status_async(
         task_id=task_id,
         channel_name=channel_name,
-        status=TaskStatus.CREATED,
+        status=TaskStatus.PENDING,
     )
 
     try:
@@ -115,10 +111,4 @@ async def enqueue_task_async[Payload: BaseModel](
             response={'error': 'The task could not be queued'},
         )
         raise err
-    else:
-        await set_and_publish_status_async(
-            task_id=task_id,
-            channel_name=channel_name,
-            status=TaskStatus.PENDING,
-        )
     return message
