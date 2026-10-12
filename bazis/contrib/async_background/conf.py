@@ -87,18 +87,6 @@ class Settings(BazisSettings):
         default=10, description="Timeout in seconds for producing a message to Kafka."
     )
 
-    KAFKA_ADMIN_TIMEOUT_MS: int = Field(
-        default=2000,
-        description="Timeout for Kafka admin operations (in milliseconds).",
-    )
-    KAFKA_AUTO_TOPIC_NUM_PARTITIONS: int = Field(
-        default=15,
-        description="Default number of partitions for automatically created topics.",
-    )
-    KAFKA_AUTO_TOPIC_REPLICATION_FACTOR: int = Field(
-        default=1,
-        description="Default replication factor for automatically created topics.",
-    )
     KAFKA_CONSUMER_TIMEOUT_MS: int = Field(
         default=2000,
         description="Timeout for Kafka consumer polling (in milliseconds).",

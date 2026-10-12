@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import json
-
-from django.conf import settings
 
 import pytest
 from bazis_test_utils.utils import get_api_client
 
-from bazis.contrib.async_background.broker import ensure_topic_exists, get_topics_by_prefix
 from bazis.contrib.async_background.testing import wait_for_task
 
 
@@ -51,7 +47,3 @@ def test_demo_enqueue_and_result(sample_app):
     )
     assert response.status_code == 200
     assert response.json()["response"]["echo"] == payload
-
-    asyncio.run(ensure_topic_exists("sample_local_test"))
-    topics_created = asyncio.run(get_topics_by_prefix("sample_local"))
-    assert {settings.KAFKA_TOPIC_ASYNC_BG, "sample_local_test"} <= set(topics_created)
