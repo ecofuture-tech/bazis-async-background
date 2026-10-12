@@ -77,13 +77,12 @@ pip install bazis-async-background
 
 ## Running Tests
 
-Run from the project root:
-
-```bash
-docker compose -f sample/docker-compose.test.yml up --build --exit-code-from bazis-async-background-pytest --attach bazis-async-background-pytest --attach bazis-async-background-consumer-test
-```
-
-This waits for the pytest container to finish and streams logs only from the Python containers, so test completion and output are easy to follow.
+The tests need PostgreSQL with PostGIS, Redis and Kafka; `CLAUDE.md` has the command and
+`.github/workflows/tests.yml` the services. From `sample`, with the `BS_*` variables of the
+database, Redis and Kafka: `python manage.py migrate`, start a consumer
+(`python manage.py kafka_consumer_single &`) and run
+`python -m pytest ../tests -o addopts="--reuse-db"` (the tests and the consumer share the
+database). Without Kafka settings the tests marked `run_with_consumer` are skipped.
 
 ## Architecture
 
