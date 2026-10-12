@@ -22,11 +22,8 @@ from faststream import AckPolicy
 from bazis.contrib.async_background import broker as broker_module
 from bazis.contrib.async_background import producer as producer_module
 from bazis.contrib.async_background.schemas import TaskStatus
-from bazis.contrib.async_background.utils import (
-    redis,
-    set_and_publish_status,
-    task_key,
-)
+from bazis.contrib.async_background.testing import delete_tasks, redis_client
+from bazis.contrib.async_background.utils import set_and_publish_status_async, task_key
 from bazis.contrib.ws.utils import get_anonymous_channel
 
 
@@ -34,7 +31,7 @@ TOKEN = 'anonymous-token-0123456789'
 
 
 def _store(task_id: str, channel_name: str, status=TaskStatus.COMPLETED, response=None):
-    set_and_publish_status(task_id, channel_name, status, response)
+    asyncio.run(set_and_publish_status_async(task_id, channel_name, status, response))
 
 
 def _get(app, task_id: str, token: str = TOKEN, **params):
@@ -82,14 +79,16 @@ def test_task_id_cannot_address_other_keys(sample_app):
     """
     The statuses live under their own prefix: a task id cannot read other keys of the cache.
     """
-    redis.set('secret-key', json.dumps({'channel_name': get_anonymous_channel(TOKEN), 'response': 1}))
+    redis_client().set(
+        'secret-key', json.dumps({'channel_name': get_anonymous_channel(TOKEN), 'response': 1})
+    )
     assert _get(sample_app, 'secret-key').status_code == 404
-    assert redis.get(task_key('secret-key')) is None
+    assert redis_client().get(task_key('secret-key')) is None
 
 
 def test_status_is_published_to_the_channel():
     channel = get_anonymous_channel(TOKEN)
-    pubsub = redis.pubsub(ignore_subscribe_messages=True)
+    pubsub = redis_client().pubsub(ignore_subscribe_messages=True)
     pubsub.subscribe(channel)
     try:
         _store('task-5', channel, status=TaskStatus.PROCESSING)
@@ -208,16 +207,15 @@ def test_enqueue_failure_marks_the_task_failed(monkeypatch):
     with pytest.raises(ConnectionError):
         asyncio.run(main())
 
-    keys = [k for k in redis.scan_iter(f'{task_key("")}*')]
-    statuses = {json.loads(redis.get(k))['status'] for k in keys}
+    keys = [k for k in redis_client().scan_iter(f'{task_key("")}*')]
+    statuses = {json.loads(redis_client().get(k))['status'] for k in keys}
     assert 'failed' in statuses
 
 
 @pytest.fixture(autouse=True)
 def _clean_redis():
-    for key in redis.scan_iter(f'{task_key("")}*'):
-        redis.delete(key)
-    redis.delete('secret-key')
+    delete_tasks()
+    redis_client().delete('secret-key')
     yield
 
 

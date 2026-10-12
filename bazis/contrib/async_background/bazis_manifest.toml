@@ -42,6 +42,11 @@ name = "set_and_publish_status_async"
 import = "bazis.contrib.async_background.utils.set_and_publish_status_async"
 use_when = "store a task status (and result) and notify the client"
 
+[[extension_points]]
+name = "testing.wait_for_task"
+import = "bazis.contrib.async_background.testing.wait_for_task"
+use_when = "a test waits for a consumer to complete a task; the module also skips the tests marked run_with_consumer without Kafka (import pytest_collection_modifyitems into the conftest)"
+
 [[pitfalls]]
 text = "consumers must be run (kafka_consumer_single / kafka_consumer_multiple) and import the task modules from KAFKA_TASKS"
 

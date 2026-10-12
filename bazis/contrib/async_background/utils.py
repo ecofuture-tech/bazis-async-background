@@ -19,8 +19,6 @@ from django.conf import settings
 
 from fastapi import Request
 
-from redis import Redis
-
 from bazis.contrib.ws.utils import (
     UserError,
     get_anonymous_channel,
@@ -33,8 +31,6 @@ from .schemas import TaskStatus
 
 
 logger = logging.getLogger(__name__)
-
-redis = Redis.from_url(settings.CACHES['default']['LOCATION'])
 
 #: the statuses of the tasks are stored under their own prefix: a bare task id from the URL
 #: addressed any key of the cache database
@@ -66,35 +62,12 @@ def _status_message(task_id: str, status: TaskStatus) -> str:
     )
 
 
-def set_and_publish_status(
-    task_id: str, channel_name: str, status: TaskStatus, response: dict | None = None
-) -> None:
-    """
-    Saves the task status in Redis and publishes a minimal status to the WS channel.
-    """
-    try:
-        redis.set(
-            task_key(task_id),
-            _status_data(channel_name, status, response),
-            ex=settings.KAFKA_RESPONSE_HOLD_SEC,
-        )
-    except Exception as err:
-        logger.exception('Failed to set task %s in Redis', task_id)
-        raise StatusStorageError(f'Redis set failed: {err}') from err
-
-    try:
-        redis.publish(channel_name, _status_message(task_id, status))
-    except Exception as err:
-        logger.exception('Failed to publish to channel for task %s', task_id)
-        raise StatusStorageError(f'Redis publish failed: {err}') from err
-
-
 async def set_and_publish_status_async(
     task_id: str, channel_name: str, status: TaskStatus, response: dict | None = None
 ) -> None:
     """
-    The asynchronous version of `set_and_publish_status` (an asyncio Redis client, so that
-    the statuses of concurrent tasks are not serialized through one thread).
+    Saves the task status (and its response) in Redis and publishes a minimal status to the
+    WS channel, with the asyncio Redis client of bazis-ws.
     """
     client = get_redis_async()
     try:

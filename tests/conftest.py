@@ -12,41 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-import time
-
-from django.conf import settings
-
 import pytest
 
-from bazis.contrib.async_background.utils import redis, task_key
-
-
-def pytest_collection_modifyitems(config, items):
-    """
-    The tests marked `run_with_consumer` need a Kafka broker and a running consumer
-    (`python manage.py kafka_consumer_single` in `sample`, see CLAUDE.md).
-    """
-    if settings.KAFKA_ENABLED:
-        return
-    skip = pytest.mark.skip(reason='Kafka is not configured (BS_KAFKA_BOOTSTRAP_SERVERS)')
-    for item in items:
-        if 'run_with_consumer' in item.keywords:
-            item.add_marker(skip)
-
-
-@pytest.fixture
-def process_async_response():
-    def _run(task_id: str, timeout: int = 45) -> dict:
-        for _ in range(timeout):
-            if redis_data := redis.get(task_key(task_id)):
-                data_dict = json.loads(redis_data)
-                if data_dict.get('status') == 'completed':
-                    return data_dict
-            time.sleep(1)
-        pytest.fail(f'Timeout waiting for async_background_response for task_id={task_id}')
-
-    return _run
+# the tests marked `run_with_consumer` need a Kafka broker and a running consumer
+# (`python manage.py kafka_consumer_single` in `sample`, see CLAUDE.md)
+from bazis.contrib.async_background.testing import pytest_collection_modifyitems  # noqa: F401
 
 
 @pytest.fixture(scope='function')

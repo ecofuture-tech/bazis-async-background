@@ -21,11 +21,12 @@ import pytest
 from bazis_test_utils.utils import get_api_client
 
 from bazis.contrib.async_background.broker import ensure_topic_exists, get_topics_by_prefix
+from bazis.contrib.async_background.testing import wait_for_task
 
 
 @pytest.mark.run_with_consumer
 @pytest.mark.django_db(transaction=True)
-def test_demo_enqueue_and_result(sample_app, process_async_response):
+def test_demo_enqueue_and_result(sample_app):
     token = "test-anonymous-token-0123456789"
     payload = {"message": "hello"}
 
@@ -40,7 +41,7 @@ def test_demo_enqueue_and_result(sample_app, process_async_response):
     assert response.status_code == 202
     task_id = response.json()["meta"]["task_id"]
 
-    result = process_async_response(task_id)
+    result = wait_for_task(task_id)
     assert result["status"] == "completed"
     assert result["response"]["response"]["echo"] == payload
 

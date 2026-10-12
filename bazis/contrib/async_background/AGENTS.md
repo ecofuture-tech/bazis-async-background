@@ -88,3 +88,13 @@ async def run_report(task: KafkaTask[ReportPayload]):
 - Always pass `**subscriber_kwargs()` to `subscriber(...)`. With the default
   `KAFKA_ACK_POLICY=ack` a failed message is not redelivered; `nack_on_error` redelivers it
   and blocks its partition. `KAFKA_ENABLE_AUTO_COMMIT=true` can lose messages.
+
+## Tests
+
+`bazis.contrib.async_background.testing` (pytest): import its
+`pytest_collection_modifyitems` into the conftest to skip the tests marked
+`run_with_consumer` without Kafka settings; `wait_for_task(task_id)` returns the stored
+status once a consumer has completed the task, `wait_for_tasks()` waits until none is
+pending or processing, `redis_client()` and `delete_tasks()` read and delete the stored
+statuses. A consumer shares the database of the tests: migrate it and run pytest with
+`--reuse-db`.
