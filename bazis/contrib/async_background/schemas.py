@@ -20,8 +20,7 @@ from pydantic import BaseModel, Field
 class TaskStatus(StrEnum):
     """Background task statuses."""
 
-    CREATED = "created"  # The task is registered but has not yet been sent to Kafka
-    PENDING = "pending"  # The message has been delivered to Kafka and is awaiting processing
+    PENDING = "pending"  # Queued: set before the message is published to Kafka
     PROCESSING = "processing"  # The consumer has started processing
     COMPLETED = "completed"  # The task has completed successfully
     FAILED = "failed"  # An error occurred during execution

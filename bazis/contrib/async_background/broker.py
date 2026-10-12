@@ -66,14 +66,6 @@ def _loop_broker() -> _LoopBroker:
     return entry
 
 
-def get_broker_for_async() -> KafkaBroker:
-    """
-    Returns the publishing broker of the running event loop, not necessarily started
-    (see `get_started_broker_for_async`).
-    """
-    return _loop_broker().broker
-
-
 async def get_started_broker_for_async() -> KafkaBroker:
     """
     Returns the started publishing broker of the running event loop.
@@ -107,9 +99,6 @@ def subscriber_kwargs(**overrides) -> dict:
     """
     if settings.KAFKA_ENABLE_AUTO_COMMIT:
         ack_policy = AckPolicy.ACK_FIRST
-    elif settings.KAFKA_ACK_POLICY == 'reject_on_error':
-        # deprecated: FastStream 0.7 warns that it is the same as ACK
-        ack_policy = AckPolicy.ACK
     else:
         ack_policy = AckPolicy(settings.KAFKA_ACK_POLICY)
     kwargs: dict[str, object] = {
