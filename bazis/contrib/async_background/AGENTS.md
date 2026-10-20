@@ -77,6 +77,11 @@ async def run_report(task: KafkaTask[ReportPayload]):
 - `GET /async_background_response/{task_id}/` needs the same token as the request that
   queued the task: no or invalid token 401, another channel 403, unknown task 404. It returns
   `response`, or `{"status": "not ready"}`; `?full_response=true` returns the stored status.
+- Polling: the 200 responses carry the stored status in the header `X-Task-Status`; the task
+  is over when it is `completed` or `failed`. `{"status": "not ready"}` is only a
+  placeholder (a stored response can have the same shape), also returned for a task
+  completed without a response. A browser client on another origin cannot read the header
+  (the CORS middleware of Bazis does not expose it): poll with `?full_response=true`.
 
 ## Rules
 

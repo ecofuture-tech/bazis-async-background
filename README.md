@@ -197,6 +197,12 @@ client (bazis-ws), which receives the status updates and owns the results; the r
 other channels are refused with 403. The statuses are stored in the cache database under
 `async_bg:task:<task_id>` for `KAFKA_RESPONSE_HOLD_SEC`.
 
+The endpoint returns the stored `response` of the task, or the placeholder
+`{"status": "not ready"}` while there is none (also for a task completed without a
+response); `?full_response=true` returns the stored status, channel and response. The
+header `X-Task-Status` carries the status of the task (`pending`, `processing`,
+`completed` or `failed`): poll until it is `completed` or `failed`.
+
 ## Usage
 
 ### Running Consumers
