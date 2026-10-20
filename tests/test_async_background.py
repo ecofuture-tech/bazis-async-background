@@ -48,31 +48,46 @@ def test_result_of_own_task(sample_app):
     response = _get(sample_app, 'task-1')
     assert response.status_code == 200
     assert response.json() == {'value': 1}
+    assert response.headers['X-Task-Status'] == 'completed'
 
     response = _get(sample_app, 'task-1', full_response='true')
     assert response.json()['status'] == 'completed'
+    assert response.headers['X-Task-Status'] == 'completed'
 
 
-def test_result_not_ready(sample_app):
-    _store('task-2', get_anonymous_channel(TOKEN), status=TaskStatus.PENDING)
-    assert _get(sample_app, 'task-2').json() == {'status': 'not ready'}
+@pytest.mark.parametrize('status', list(TaskStatus))
+def test_result_not_ready(sample_app, status):
+    """
+    The body without a response is a placeholder (a stored response can have the same
+    shape): the client tells the status of the task by `X-Task-Status`.
+    """
+    _store('task-2', get_anonymous_channel(TOKEN), status=status)
+    response = _get(sample_app, 'task-2')
+    assert response.status_code == 200
+    assert response.json() == {'status': 'not ready'}
+    assert response.headers['X-Task-Status'] == status.value
 
 
 def test_result_of_foreign_task(sample_app):
     _store('task-3', get_anonymous_channel('other-anonymous-token-0123'))
-    assert _get(sample_app, 'task-3').status_code == 403
+    response = _get(sample_app, 'task-3')
+    assert response.status_code == 403
+    assert 'X-Task-Status' not in response.headers
 
 
 def test_result_access_requires_token(sample_app):
     _store('task-4', get_anonymous_channel(TOKEN))
     response = get_api_client(sample_app).get('/api/v1/async_background_response/task-4/')
     assert response.status_code == 401
+    assert 'X-Task-Status' not in response.headers
     # an anonymous token must be a valid anonymous token, not a channel name
     assert _get(sample_app, 'task-4', token='user_ws::1').status_code == 401
 
 
 def test_result_unknown_task(sample_app):
-    assert _get(sample_app, 'missing-task').status_code == 404
+    response = _get(sample_app, 'missing-task')
+    assert response.status_code == 404
+    assert 'X-Task-Status' not in response.headers
 
 
 def test_task_id_cannot_address_other_keys(sample_app):

@@ -14,8 +14,9 @@
 
 from django.utils.translation import gettext_lazy as _
 
-from fastapi import Request
+from fastapi import Request, Response
 
+from bazis.contrib.async_background.schemas import TaskStatus
 from bazis.contrib.async_background.utils import (
     ChannelNameError,
     get_task_data_async,
@@ -28,13 +29,30 @@ from bazis.core.routing import BazisRouter
 router = BazisRouter(tags=[_('Async requests')])
 
 
-@router.get('/async_background_response/{task_id}/', response_model=dict)
+@router.get(
+    '/async_background_response/{task_id}/',
+    response_model=dict,
+    responses={
+        200: {
+            'headers': {
+                'X-Task-Status': {
+                    'description': 'The stored status of the task',
+                    'schema': {'type': 'string', 'enum': [status.value for status in TaskStatus]},
+                }
+            }
+        }
+    },
+)
 async def get_async_background_response(
-    request: Request, task_id: str, full_response: bool = False
+    request: Request, response: Response, task_id: str, full_response: bool = False
 ) -> dict:
     """
     Returns the result of a background task of the client (the token of the request must
     resolve to the channel the task was created with).
+
+    Without `full_response` the body is the stored response of the task, or the placeholder
+    `{"status": "not ready"}` while there is none (also for a task completed without a
+    response): the header `X-Task-Status` carries the status of the task.
     """
     try:
         channel_name = await resolve_channel_name_async(request)
@@ -48,8 +66,9 @@ async def get_async_background_response(
     if channel_name != task_data.get('channel_name'):
         raise JsonApi403Exception
 
+    response.headers['X-Task-Status'] = task_data['status']
     if full_response:
         return task_data
 
-    response = task_data.get('response')
-    return response if response is not None else {'status': 'not ready'}
+    result = task_data.get('response')
+    return result if result is not None else {'status': 'not ready'}
